@@ -2,7 +2,21 @@
 新竹市寵物服務資源儀表板 🐾
 日系和風可愛版 + 互動地圖
 """
+import urllib.request
+import os
 
+font_path = "NotoSansTC.otf"
+if not os.path.exists(font_path):
+    urllib.request.urlretrieve(
+        "https://github.com/googlefonts/noto-cjk/raw/main/Sans/OTF/TraditionalChinese/NotoSansCJKtc-Regular.otf",
+        font_path
+    )
+
+import matplotlib.font_manager as fm
+fm.fontManager.addfont(font_path)
+import matplotlib.pyplot as plt
+plt.rcParams['font.family'] = 'Noto Sans CJK TC'
+plt.rcParams['axes.unicode_minus'] = False
 import os
 import json
 import time
@@ -11,10 +25,6 @@ import matplotlib
 matplotlib.use('Agg')
 import matplotlib.pyplot as plt
 import matplotlib.font_manager as fm
-
-plt.rcParams['font.family'] = 'sans-serif'
-plt.rcParams['font.sans-serif'] = ['Noto Sans CJK TC', 'Arial Unicode MS', 'sans-serif']
-plt.rcParams['axes.unicode_minus'] = False
 import matplotlib.pyplot as plt
 import seaborn as sns
 import streamlit as st
