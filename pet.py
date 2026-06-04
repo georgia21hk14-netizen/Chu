@@ -256,6 +256,7 @@ def load_data():
     df_hosp['是否為登記站'] = df_hosp['機構名稱'].str.strip().isin(reg_names)
     df_hosp['類別顯示'] = df_hosp['執照類別'].map({'獸醫師':'獸醫師','獸醫佐':'獸醫佐'})
     df_reg['區域'] = df_reg['住址'].apply(extract_district)
+    df_drug['區域'] = df_drug['營業所地址'].apply(extract_district)
     df_drug['縣市別'] = '新竹市'
     hosp_names = set(df_hosp['機構名稱'].str.strip())
     df_reg['是否為醫院'] = df_reg['名稱'].str.strip().isin(hosp_names)
@@ -296,9 +297,11 @@ st.sidebar.markdown(f"""
 # ── 篩選 ─────────────────────────────────────────────────────
 filt_hosp = df_hosp.copy()
 filt_reg  = df_reg.copy()
+filt_drug = df_drug.copy()
 if sel_district != '全部':
     filt_hosp = filt_hosp[filt_hosp['區域'] == sel_district]
     filt_reg  = filt_reg[filt_reg['區域'] == sel_district]
+    filt_drug = filt_drug[filt_drug['區域'] == sel_district]
 if sel_lic != '全部':
     filt_hosp = filt_hosp[filt_hosp['類別顯示'] == sel_lic]
 if only_dual:
@@ -339,7 +342,7 @@ st.markdown(f"""
 kpi_data = [
     (len(filt_hosp),     C['peach'],    '🏥', '動物醫院'),
     (len(filt_reg),      C['mint'],     '📍', '寵物登記站'),
-    (len(df_drug),       C['sky'],      '💊', '藥品販賣機構'),
+    (len(filt_drug),       C['sky'],      '💊', '藥品販賣機構'),
     (dual_count,         C['lavender'], '⭐', '複合服務機構'),
     (f"{coverage_pct}%", C['pink'],     '🔗', '複合覆蓋率'),
 ]
@@ -412,7 +415,7 @@ with tab1:
     <div style="background:linear-gradient(135deg,#e8f0ff,#dce8ff);border-radius:16px;padding:14px 18px;
                 border:1.5px solid {C['border']};text-align:center;">
       <div style="font-size:0.78rem;color:{C['subtext']};margin-bottom:4px;">全市藥品販賣機構</div>
-      <div style="font-size:1.5rem;font-weight:800;color:{C['brown']};">{len(df_drug)}</div>
+      <div style="font-size:1.5rem;font-weight:800;color:{C['brown']};">{len(filt_drug)}</div>
       <div style="font-size:0.85rem;color:{C['sky']};font-weight:600;">間　覆蓋全市三區</div>
     </div>""", unsafe_allow_html=True)
 
@@ -454,8 +457,8 @@ with tab1:
     st.markdown(f'<div style="font-size:1rem;font-weight:700;color:{C["brown"]};margin:16px 0 8px;">📊 三類服務整體數量比較</div>', unsafe_allow_html=True)
     col_a, col_b, col_c = st.columns([3, 1, 1])
     with col_a:
-        cats = [f'動物醫院\n({len(filt_hosp)})', f'寵物登記站\n({len(filt_reg)})', f'藥品販賣\n機構 ({len(df_drug)})']
-        vals = [len(filt_hosp), len(filt_reg), len(df_drug)]
+        cats = [f'動物醫院\n({len(filt_hosp)})', f'寵物登記站\n({len(filt_reg)})', f'藥品販賣\n機構 ({len(filt_drug)})']
+        vals = [len(filt_hosp), len(filt_reg), len(filt_drug)]
         fig, ax = plt.subplots(figsize=(6.5, 3.5))
         bar_colors = [C['pink'], C['mint'], C['sky']]
         bars = ax.bar(cats, vals, color=bar_colors, width=0.5, edgecolor='none',
@@ -554,15 +557,21 @@ with tab2:
             </div>""", unsafe_allow_html=True)
 
     st.markdown(f'<div style="font-size:1rem;font-weight:700;color:{C["brown"]};margin:20px 0 8px;">🗺️ 各區資源熱力圖</div>', unsafe_allow_html=True)
-    heat_data = [{'行政區':d,'動物醫院':len(filt_hosp[filt_hosp['區域']==d]),'寵物登記站':len(filt_reg[filt_reg['區域']==d])}
-                 for d in ['東區','北區','香山區','其他','未標示']]
-    heat_df = pd.DataFrame(heat_data).set_index('行政區')
-    fig, ax = plt.subplots(figsize=(7, 3.5))
-    sns.heatmap(heat_df, annot=True, fmt='d', cmap=sns.light_palette(C['pink'], as_cmap=True),
-                linewidths=3, linecolor='white',
-                annot_kws={'size':14,'weight':'bold','color':C['text']}, ax=ax, cbar_kws={'shrink':0.7})
-    ax.set_xlabel(''); ax.set_ylabel(''); ax.tick_params(labelsize=11, rotation=0, colors=C['text'])
-    fig.patch.set_facecolor('#fdf6ee'); st.pyplot(fig); plt.close()
+    active_districts = sorted(set(filt_hosp['區域'].tolist() + filt_reg['區域'].tolist()))
+    active_districts = [d for d in active_districts if d not in ('其他', '未標示')]
+    if not active_districts:
+        st.info('目前篩選條件下無可顯示的行政區資料。')
+    else:
+        heat_data = [{'行政區':d,'動物醫院':len(filt_hosp[filt_hosp['區域']==d]),'寵物登記站':len(filt_reg[filt_reg['區域']==d])}
+                     for d in active_districts]
+        heat_df = pd.DataFrame(heat_data).set_index('行政區')
+        fig_h = max(2.5, len(active_districts) * 0.9)
+        fig, ax = plt.subplots(figsize=(7, fig_h))
+        sns.heatmap(heat_df, annot=True, fmt='d', cmap=sns.light_palette(C['pink'], as_cmap=True),
+                    linewidths=3, linecolor='white',
+                    annot_kws={'size':14,'weight':'bold','color':C['text']}, ax=ax, cbar_kws={'shrink':0.7})
+        ax.set_xlabel(''); ax.set_ylabel(''); ax.tick_params(labelsize=11, rotation=0, colors=C['text'])
+        fig.patch.set_facecolor('#fdf6ee'); st.pyplot(fig); plt.close()
 
 
 with tab3:
@@ -643,7 +652,7 @@ with tab3:
 
     else:
         st.markdown(_term('動物用藥品販賣機構','經主管機關核准販賣動物用藥品（含處方藥、非處方藥）的合法商號，購買前請確認證照是否有效'), unsafe_allow_html=True)
-        disp = df_drug[['商號名稱','負責人','營業所地址','電話','藥品管理技術人']].copy()
+        disp = filt_drug[['商號名稱','負責人','營業所地址','電話','藥品管理技術人']].copy()
         if search_kw: disp = disp[disp.apply(lambda r: search_kw in str(r.values), axis=1)]
         st.caption(f"共 {len(disp)} 筆結果")
         cc = st.columns(2)
