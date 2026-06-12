@@ -27,7 +27,7 @@ def _ensure_cjk_font():
     from matplotlib import font_manager
     font_path = "/tmp/NotoSansCJKtc-Regular.otf"
     if not os.path.exists(font_path):
-        url = "https://fonts.gstatic.com/ea/notosanstc/v1/NotoSansTC-Regular.otf"
+        url = "https://raw.githubusercontent.com/notofonts/noto-cjk/main/Sans/OTF/TraditionalChinese/NotoSansCJKtc-Regular.otf"
         try:
             r = requests.get(url, timeout=15)
             if r.status_code == 200:
